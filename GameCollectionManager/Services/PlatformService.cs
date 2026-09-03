@@ -1,4 +1,5 @@
 using GameCollectionManager.Data;
+using GameCollectionManager.DTOs;
 using GameCollectionManager.Models;
 using GameCollectionManager.Services.Interface;
 using Microsoft.EntityFrameworkCore;
@@ -7,40 +8,54 @@ namespace GameCollectionManager.Services;
 
 public class PlatformService(AppDbContext context): IPlatformService
 {
-    public async Task<Platform> CreateAsync(Platform platform)
+    public async Task<PlatformResponse> CreateAsync(CreatePlatformRequest request)
     {
-        context.Platforms.Add(platform);
+        var platform = new Platform
+        {
+            Name = request.Name
+        };
 
+        context.Platforms.Add(platform);
         await context.SaveChangesAsync();
 
-        return platform;
+        return MapToResponse(platform);
     }
 
-    public async Task<List<Platform>> GetAllAsync()
+    public async Task<List<PlatformResponse>> GetAllAsync()
     {
-        return await context.Platforms
+        var platforms = await context.Platforms
             .AsNoTracking()
             .ToListAsync();
+
+        return platforms
+            .Select(MapToResponse)
+            .ToList();
     }
 
-    public async Task<Platform?> GetByIdAsync(int id)
+    public async Task<PlatformResponse?> GetByIdAsync(int id)
     {
-        return await context.Platforms
+        var platform = await context.Platforms
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (platform is null)
+        {
+            return null;
+        }
+
+        return MapToResponse(platform);
     }
 
-    public async Task<bool> UpdateAsync(int id, Platform platform)
+    public async Task<bool> UpdateAsync(int id, UpdatePlatformRequest request)
     {
-        var existingPlatform =
-            await context.Platforms.FindAsync(id);
+        var existingPlatform = await context.Platforms.FindAsync(id);
 
-        if (existingPlatform == null)
+        if (existingPlatform is null)
         {
             return false;
         }
 
-        existingPlatform.Name = platform.Name;
+        existingPlatform.Name = request.Name;
 
         await context.SaveChangesAsync();
 
@@ -49,10 +64,9 @@ public class PlatformService(AppDbContext context): IPlatformService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var platform =
-            await context.Platforms.FindAsync(id);
+        var platform = await context.Platforms.FindAsync(id);
 
-        if (platform == null)
+        if (platform is null)
         {
             return false;
         }
@@ -62,5 +76,14 @@ public class PlatformService(AppDbContext context): IPlatformService
         await context.SaveChangesAsync();
 
         return true;
+    }
+    
+    private static PlatformResponse MapToResponse(Platform platform)
+    {
+        return new PlatformResponse
+        {
+            Id = platform.Id,
+            Name = platform.Name
+        };
     }
 }

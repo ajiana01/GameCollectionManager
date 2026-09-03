@@ -1,18 +1,18 @@
-using GameCollectionManager.Models;
+using GameCollectionManager.DTOs;
 
 namespace GameCollectionManager.Services.Interface;
 
 public interface IPlatformService
 {
     //Create
-    Task<Platform> CreateAsync(Platform platform);
+    Task<PlatformResponse> CreateAsync(CreatePlatformRequest request);
     
     //Read
-    Task<List<Platform>> GetAllAsync();
-    Task<Platform?> GetByIdAsync(int id);
+    Task<List<PlatformResponse>> GetAllAsync();
+    Task<PlatformResponse?> GetByIdAsync(int id);
     
     //Update
-    Task<bool> UpdateAsync(int id, Platform platform);
+    Task<bool> UpdateAsync(int id, UpdatePlatformRequest request);
     
     //Delete
     Task<bool> DeleteAsync(int id);

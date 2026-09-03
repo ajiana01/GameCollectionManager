@@ -1,18 +1,18 @@
-using GameCollectionManager.Models;
+using GameCollectionManager.DTOs;
 
 namespace GameCollectionManager.Services.Interface;
 
 public interface IGameService
 {
     //Create
-    Task<Game> CreateAsync(Game game);
+    Task<GameResponse?> CreateAsync(CreateGameRequest request);
     
     //Read
-    Task<List<Game>> GetAllAsync();
-    Task<Game?> GetByIdAsync(int id);
+    Task<List<GameResponse>> GetAllAsync();
+    Task<GameResponse?> GetByIdAsync(int id);
     
     //Update
-    Task<bool> UpdateAsync(int id, Game game);
+    Task<bool> UpdateAsync(int id, UpdateGameRequest request);
     
     //Delete
     Task<bool> DeleteAsync(int id);

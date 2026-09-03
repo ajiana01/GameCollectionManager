@@ -1,18 +1,17 @@
-using GameCollectionManager.Models;
-
+using GameCollectionManager.DTOs;
 namespace GameCollectionManager.Services.Interface;
 
 public interface IGenreService
 {
     //Create
-    Task<Genre> CreateAsync(Genre genre);
+    Task<GenreResponse> CreateAsync(CreateGenreRequest request);
     
     //Read
-    Task<List<Genre>> GetAllAsync();
-    Task<Genre?> GetByIdAsync(int id);
+    Task<List<GenreResponse>> GetAllAsync();
+    Task<GenreResponse?> GetByIdAsync(int id);
     
     //Update
-    Task<bool> UpdateAsync(int id, Genre genre);
+    Task<bool> UpdateAsync(int id, UpdateGenreRequest request);
     
     //Delete
     Task<bool> DeleteAsync(int id);

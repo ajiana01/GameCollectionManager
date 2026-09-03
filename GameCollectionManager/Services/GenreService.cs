@@ -1,4 +1,5 @@
 using GameCollectionManager.Data;
+using GameCollectionManager.DTOs;
 using GameCollectionManager.Models;
 using GameCollectionManager.Services.Interface;
 using Microsoft.EntityFrameworkCore;
@@ -7,40 +8,54 @@ namespace GameCollectionManager.Services;
 
 public class GenreService(AppDbContext context) : IGenreService
 {
-    public async Task<Genre> CreateAsync(Genre genre)
+    public async Task<GenreResponse> CreateAsync(CreateGenreRequest request)
     {
-        context.Genres.Add(genre);
+        var genre = new Genre
+        {
+            Name = request.Name
+        };
 
+        context.Genres.Add(genre);
         await context.SaveChangesAsync();
 
-        return genre;
+        return MapToResponse(genre);
     }
 
-    public async Task<List<Genre>> GetAllAsync()
+    public async Task<List<GenreResponse>> GetAllAsync()
     {
-        return await context.Genres
+        var genres = await context.Genres
             .AsNoTracking()
             .ToListAsync();
+
+        return genres
+            .Select(MapToResponse)
+            .ToList();
     }
 
-    public async Task<Genre?> GetByIdAsync(int id)
+    public async Task<GenreResponse?> GetByIdAsync(int id)
     {
-        return await context.Genres
+        var genre = await context.Genres
             .AsNoTracking()
             .FirstOrDefaultAsync(g => g.Id == id);
+
+        if (genre is null)
+        {
+            return null;
+        }
+
+        return MapToResponse(genre);
     }
 
-    public async Task<bool> UpdateAsync(int id, Genre genre)
+    public async Task<bool> UpdateAsync(int id, UpdateGenreRequest request)
     {
-        var existingGenre =
-            await context.Genres.FindAsync(id);
+        var existingGenre = await context.Genres.FindAsync(id);
 
-        if (existingGenre == null)
+        if (existingGenre is null)
         {
             return false;
         }
 
-        existingGenre.Name = genre.Name;
+        existingGenre.Name = request.Name;
 
         await context.SaveChangesAsync();
 
@@ -49,10 +64,9 @@ public class GenreService(AppDbContext context) : IGenreService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var genre =
-            await context.Genres.FindAsync(id);
+        var genre = await context.Genres.FindAsync(id);
 
-        if (genre == null)
+        if (genre is null)
         {
             return false;
         }
@@ -62,5 +76,14 @@ public class GenreService(AppDbContext context) : IGenreService
         await context.SaveChangesAsync();
 
         return true;
+    }
+    
+    private static GenreResponse MapToResponse(Genre genre)
+    {
+        return new GenreResponse
+        {
+            Id = genre.Id,
+            Name = genre.Name
+        };
     }
 }
