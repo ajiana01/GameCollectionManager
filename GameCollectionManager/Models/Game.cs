@@ -9,6 +9,8 @@ public class Game
     [Required]
     [MaxLength(200)]
     public string Title { get; set; } = String.Empty;
+    
+    [MaxLength(500)]
     public string? Description { get; set; }
     public int ReleaseYear { get; set; }
     
