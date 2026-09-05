@@ -6,218 +6,182 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameCollectionManager.Services;
 
-public class GameService(AppDbContext context): IGameService
+public class GameService(AppDbContext context) : IGameService
 {
-    public async Task<GameResponse?> CreateAsync(CreateGameRequest request)
+    public async Task<ApiResponseDto<GameDto>> CreateAsync(CreateGameDto createGameDto, string userId)
     {
-
-        var developer = await context.Developers
-            .FirstOrDefaultAsync(d => d.Id == request.DeveloperId);
-
-        if (developer is null)
+        try
         {
-            return null;
-        }
+            var developer = await context.Developers
+                .FirstOrDefaultAsync(d => d.Id == createGameDto.DeveloperId && d.UserId == userId);
 
-        var genres = await context.Genres
-            .Where(g => request.GenreIds.Contains(g.Id))
-            .ToListAsync();
-
-        var platforms = await context.Platforms
-            .Where(p => request.PlatformIds.Contains(p.Id))
-            .ToListAsync();
-
-        var game = new Game
-        {
-            Title = request.Title,
-            Description = request.Description,
-            ReleaseYear = request.ReleaseYear,
-            DeveloperId = request.DeveloperId,
-            Developer = developer,
-            Genres = genres,
-            Platforms = platforms
-        };
-
-        context.Games.Add(game);
-        await context.SaveChangesAsync();
-
-        return MapToResponse(game);
-    }
-
-    public async Task<List<GameResponse>> GetAllAsync()
-    {
-        return await context.Games
-            .AsNoTracking()
-            .Select(game => new GameResponse
+            if (developer is null)
             {
-                Id = game.Id,
-                Title = game.Title,
-                Description = game.Description,
-                ReleaseYear = game.ReleaseYear,
+                return ApiResponseDto<GameDto>.ErrorResult("Developer not found");
+            }
 
-                Developer = new DeveloperResponse
-                {
-                    Id = game.Developer.Id,
-                    Name = game.Developer.Name,
-                    Location = game.Developer.Location
-                },
+            var genres = await context.Genres
+                .Where(g => createGameDto.GenreIds.Contains(g.Id))
+                .ToListAsync();
 
-                Genres = game.Genres
-                    .Select(genre => new GenreResponse
-                    {
-                        Id = genre.Id,
-                        Name = genre.Name
-                    })
-                    .ToList(),
+            var platforms = await context.Platforms
+                .Where(p => createGameDto.PlatformIds.Contains(p.Id))
+                .ToListAsync();
 
-                Platforms = game.Platforms
-                    .Select(platform => new PlatformResponse
-                    {
-                        Id = platform.Id,
-                        Name = platform.Name
-                    })
-                    .ToList()
-            })
-            .ToListAsync();
-    }
-
-    public async Task<GameResponse?> GetByIdAsync(int id)
-    {
-        return await context.Games
-            .AsNoTracking()
-            .Where(game => game.Id == id)
-            .Select(game => new GameResponse
+            var game = new Game
             {
-                Id = game.Id,
-                Title = game.Title,
-                Description = game.Description,
-                ReleaseYear = game.ReleaseYear,
+                Title = createGameDto.Title,
+                Description = createGameDto.Description,
+                ReleaseYear = createGameDto.ReleaseYear,
+                Developer = developer,
+                Genres = genres,
+                Platforms = platforms
+            };
 
-                Developer = new DeveloperResponse
-                {
-                    Id = game.Developer.Id,
-                    Name = game.Developer.Name,
-                    Location = game.Developer.Location
-                },
+            context.Games.Add(game);
+            await context.SaveChangesAsync();
 
-                Genres = game.Genres
-                    .Select(genre => new GenreResponse
-                    {
-                        Id = genre.Id,
-                        Name = genre.Name
-                    })
-                    .ToList(),
-
-                Platforms = game.Platforms
-                    .Select(platform => new PlatformResponse
-                    {
-                        Id = platform.Id,
-                        Name = platform.Name
-                    })
-                    .ToList()
-            })
-            .FirstOrDefaultAsync();
+            return ApiResponseDto<GameDto>.SuccessResult(MapToDto(game), "Game created successfully");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<GameDto>.ErrorResult($"Error creating game: {ex.Message}");
+        }
     }
 
-    public async Task<bool> UpdateAsync(int id, UpdateGameRequest request)
+    public async Task<ApiResponseDto<List<GameDto>>> GetAllAsync(string userId)
     {
-        var existingGame = await context.Games
-            .Include(game => game.Genres)
-            .Include(game => game.Platforms)
-            .FirstOrDefaultAsync(game => game.Id == id);
-
-        if (existingGame is null)
+        try
         {
-            return false;
+            var games = await context.Games
+                .AsNoTracking()
+                .Include(game => game.Developer)
+                .Include(game => game.Genres)
+                .Include(game => game.Platforms)
+                .Where(game => game.Developer.UserId == userId)
+                .ToListAsync();
+
+            return ApiResponseDto<List<GameDto>>.SuccessResult(games.Select(MapToDto).ToList());
         }
-
-        var developerExists = await context.Developers
-            .AnyAsync(developer => developer.Id == request.DeveloperId);
-
-        if (!developerExists)
+        catch (Exception ex)
         {
-            return false;
+            return ApiResponseDto<List<GameDto>>.ErrorResult($"Error retrieving games: {ex.Message}");
         }
-
-        var genres = await context.Genres
-            .Where(game => request.GenreIds.Contains(game.Id))
-            .ToListAsync();
-
-        var platforms = await context.Platforms
-            .Where(platform => request.PlatformIds.Contains(platform.Id))
-            .ToListAsync();
-
-        existingGame.Title = request.Title;
-        existingGame.Description = request.Description;
-        existingGame.ReleaseYear = request.ReleaseYear;
-        existingGame.DeveloperId = request.DeveloperId;
-
-        existingGame.Genres.Clear();
-
-        foreach (var genre in genres)
-        {
-            existingGame.Genres.Add(genre);
-        }
-
-        existingGame.Platforms.Clear();
-
-        foreach (var platform in platforms)
-        {
-            existingGame.Platforms.Add(platform);
-        }
-
-        await context.SaveChangesAsync();
-
-        return true;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<ApiResponseDto<GameDto>?> GetByIdAsync(int id, string userId)
     {
-        var game = await context.Games
-            .FindAsync(id);
-
-        if (game is null)
+        try
         {
-            return false;
+            var game = await context.Games
+                .AsNoTracking()
+                .Include(game => game.Developer)
+                .Include(game => game.Genres)
+                .Include(game => game.Platforms)
+                .FirstOrDefaultAsync(game => game.Id == id && game.Developer.UserId == userId);
+
+            return game is null
+                ? ApiResponseDto<GameDto>.ErrorResult("Game not found")
+                : ApiResponseDto<GameDto>.SuccessResult(MapToDto(game));
         }
-
-        context.Games.Remove(game);
-
-        await context.SaveChangesAsync();
-
-        return true;
+        catch (Exception ex)
+        {
+            return ApiResponseDto<GameDto>.ErrorResult($"Error retrieving game: {ex.Message}");
+        }
     }
-    
-    private static GameResponse MapToResponse(Game game)
+
+    public async Task<ApiResponseDto<GameDto>> UpdateAsync(int id, UpdateGameDto updateGameDto, string userId)
     {
-        return new GameResponse
+        try
+        {
+            var game = await context.Games
+                .Include(existingGame => existingGame.Developer)
+                .Include(existingGame => existingGame.Genres)
+                .Include(existingGame => existingGame.Platforms)
+                .FirstOrDefaultAsync(existingGame => existingGame.Id == id && existingGame.Developer.UserId == userId);
+
+            if (game is null)
+            {
+                return ApiResponseDto<GameDto>.ErrorResult("Game not found");
+            }
+
+            var developer = await context.Developers
+                .FirstOrDefaultAsync(d => d.Id == updateGameDto.DeveloperId && d.UserId == userId);
+
+            if (developer is null)
+            {
+                return ApiResponseDto<GameDto>.ErrorResult("Developer not found");
+            }
+
+            var genres = await context.Genres
+                .Where(g => updateGameDto.GenreIds.Contains(g.Id))
+                .ToListAsync();
+
+            var platforms = await context.Platforms
+                .Where(p => updateGameDto.PlatformIds.Contains(p.Id))
+                .ToListAsync();
+
+            game.Title = updateGameDto.Title;
+            game.Description = updateGameDto.Description;
+            game.ReleaseYear = updateGameDto.ReleaseYear;
+            game.Developer = developer;
+            game.Genres = genres;
+            game.Platforms = platforms;
+
+            await context.SaveChangesAsync();
+
+            return ApiResponseDto<GameDto>.SuccessResult(MapToDto(game), "Game updated successfully");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<GameDto>.ErrorResult($"Error updating game: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponseDto<object>> DeleteAsync(int id, string userId)
+    {
+        try
+        {
+            var game = await context.Games
+                .Include(existingGame => existingGame.Developer)
+                .FirstOrDefaultAsync(existingGame => existingGame.Id == id && existingGame.Developer.UserId == userId);
+
+            if (game is null)
+            {
+                return ApiResponseDto<object>.ErrorResult("Game not found");
+            }
+
+            context.Games.Remove(game);
+            await context.SaveChangesAsync();
+
+            return ApiResponseDto<object>.SuccessResult(new object(), "Game deleted successfully");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponseDto<object>.ErrorResult($"Error deleting game: {ex.Message}");
+        }
+    }
+
+    private static GameDto MapToDto(Game game)
+    {
+        return new GameDto
         {
             Id = game.Id,
             Title = game.Title,
             Description = game.Description,
             ReleaseYear = game.ReleaseYear,
-
-            Developer = new DeveloperResponse
+            Developer = new DeveloperDto
             {
                 Id = game.Developer.Id,
                 Name = game.Developer.Name,
-                Location = game.Developer.Location
+                Location = game.Developer.Location,
+                CreatedAt = game.Developer.CreatedAt
             },
-
             Genres = game.Genres
-                .Select(genre => new GenreResponse
-                {
-                    Id = genre.Id,
-                    Name = genre.Name
-                })
+                .Select(genre => new GenreDto { Id = genre.Id, Name = genre.Name })
                 .ToList(),
-
             Platforms = game.Platforms
-                .Select(platform => new PlatformResponse
-                {
-                    Id = platform.Id,
-                    Name = platform.Name
-                })
+                .Select(platform => new PlatformDto { Id = platform.Id, Name = platform.Name })
                 .ToList()
         };
     }

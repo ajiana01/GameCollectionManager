@@ -5,15 +5,15 @@ namespace GameCollectionManager.Services.Interface;
 public interface IGameService
 {
     //Create
-    Task<GameResponse?> CreateAsync(CreateGameRequest request);
+    Task<ApiResponseDto<GameDto>> CreateAsync(CreateGameDto createGameDto, string userId);
     
     //Read
-    Task<List<GameResponse>> GetAllAsync();
-    Task<GameResponse?> GetByIdAsync(int id);
+    Task<ApiResponseDto<List<GameDto>>> GetAllAsync(string userId);
+    Task<ApiResponseDto<GameDto>?> GetByIdAsync(int id, string userId);
     
     //Update
-    Task<bool> UpdateAsync(int id, UpdateGameRequest request);
+    Task<ApiResponseDto<GameDto>> UpdateAsync(int id, UpdateGameDto updateGameDto, string userId);
     
     //Delete
-    Task<bool> DeleteAsync(int id);
+    Task<ApiResponseDto<object>> DeleteAsync(int id, string userId);
 }

@@ -1,70 +1,66 @@
+using FluentValidation;
 using GameCollectionManager.DTOs;
 using GameCollectionManager.Services.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GameCollectionManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class GenresController(IGenreService genreService) : ControllerBase
+[Authorize]
+public class GenresController(
+    IGenreService genreService,
+    IValidator<CreateGenreDto> createValidator,
+    IValidator<UpdateGenreDto> updateValidator) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<GenreResponse>>> GetAll()
+    public async Task<IActionResult> GetAll()
     {
         return Ok(await genreService.GetAllAsync());
     }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<GenreResponse>> GetById(int id)
+    public async Task<IActionResult> GetById(int id)
     {
-        var genre = await genreService.GetByIdAsync(id);
-
-        if (genre is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(genre);
+        var result = await genreService.GetByIdAsync(id);
+        return result is { Success: true } ? Ok(result) : NotFound(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<GenreResponse>> Create(
-        CreateGenreRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateGenreDto createGenreDto)
     {
-        var genre = await genreService.CreateAsync(request);
+        var validationResult = await createValidator.ValidateAsync(createGenreDto);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(error => error.ErrorMessage).ToList();
+            return BadRequest(ApiResponseDto<GenreDto>.ErrorResult("Validation failed", errors));
+        }
 
-        return CreatedAtAction(
-            nameof(GetById),
-            new { id = genre.Id },
-            genre
-        );
+        var result = await genreService.CreateAsync(createGenreDto);
+        return result.Success
+            ? CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result)
+            : BadRequest(result);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(
-        int id,
-        UpdateGenreRequest request)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateGenreDto updateGenreDto)
     {
-        var success = await genreService.UpdateAsync(id, request);
-
-        if (!success)
+        var validationResult = await updateValidator.ValidateAsync(updateGenreDto);
+        if (!validationResult.IsValid)
         {
-            return NotFound();
+            var errors = validationResult.Errors.Select(error => error.ErrorMessage).ToList();
+            return BadRequest(ApiResponseDto<GenreDto>.ErrorResult("Validation failed", errors));
         }
 
-        return NoContent();
+        var result = await genreService.UpdateAsync(id, updateGenreDto);
+        return result.Success ? Ok(result) : NotFound(result);
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var success = await genreService.DeleteAsync(id);
-
-        if (!success)
-        {
-            return NotFound();
-        }
-
-        return NoContent();
+        var result = await genreService.DeleteAsync(id);
+        return result.Success ? Ok(result) : NotFound(result);
     }
 }

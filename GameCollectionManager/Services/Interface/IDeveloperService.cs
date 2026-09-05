@@ -5,15 +5,15 @@ namespace GameCollectionManager.Services.Interface;
 public interface IDeveloperService
 {
     //Create
-    Task<DeveloperResponse> CreateAsync(CreateDeveloperRequest request);
+    Task<ApiResponseDto<DeveloperDto>> CreateAsync(CreateDeveloperDto createDeveloperDto, string userId);
     
     //Read
-    Task<List<DeveloperResponse>> GetAllAsync();
-    Task<DeveloperResponse?> GetByIdAsync(int id);
+    Task<ApiResponseDto<List<DeveloperDto>>> GetAllAsync(string userId);
+    Task<ApiResponseDto<DeveloperDto>?> GetByIdAsync(int id, string userId);
     
     //Update
-    Task<bool> UpdateAsync(int id, UpdateDeveloperRequest request);
+    Task<ApiResponseDto<DeveloperDto>> UpdateAsync(int id, UpdateDeveloperDto updateDeveloperDto, string userId);
     
     //Delete
-    Task<bool> DeleteAsync(int id);
+    Task<ApiResponseDto<object>> DeleteAsync(int id, string userId);
 }

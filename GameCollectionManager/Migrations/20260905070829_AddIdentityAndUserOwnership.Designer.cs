@@ -3,6 +3,7 @@ using System;
 using GameCollectionManager.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GameCollectionManager.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260905070829_AddIdentityAndUserOwnership")]
+    partial class AddIdentityAndUserOwnership
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.30");
@@ -167,10 +170,7 @@ namespace GameCollectionManager.Migrations
 
                     b.HasIndex("Title");
 
-                    b.ToTable("Games", t =>
-                        {
-                            t.HasCheckConstraint("CK_Games_ReleaseYear", "\"ReleaseYear\" BETWEEN 1950 AND 2100");
-                        });
+                    b.ToTable("Games");
                 });
 
             modelBuilder.Entity("GameCollectionManager.Models.Genre", b =>

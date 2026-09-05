@@ -5,15 +5,15 @@ namespace GameCollectionManager.Services.Interface;
 public interface IPlatformService
 {
     //Create
-    Task<PlatformResponse> CreateAsync(CreatePlatformRequest request);
+    Task<ApiResponseDto<PlatformDto>> CreateAsync(CreatePlatformDto createPlatformDto);
     
     //Read
-    Task<List<PlatformResponse>> GetAllAsync();
-    Task<PlatformResponse?> GetByIdAsync(int id);
+    Task<ApiResponseDto<List<PlatformDto>>> GetAllAsync();
+    Task<ApiResponseDto<PlatformDto>?> GetByIdAsync(int id);
     
     //Update
-    Task<bool> UpdateAsync(int id, UpdatePlatformRequest request);
+    Task<ApiResponseDto<PlatformDto>> UpdateAsync(int id, UpdatePlatformDto updatePlatformDto);
     
     //Delete
-    Task<bool> DeleteAsync(int id);
+    Task<ApiResponseDto<object>> DeleteAsync(int id);
 }

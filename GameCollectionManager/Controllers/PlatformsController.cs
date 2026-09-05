@@ -1,70 +1,66 @@
+using FluentValidation;
 using GameCollectionManager.DTOs;
 using GameCollectionManager.Services.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GameCollectionManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class PlatformsController(IPlatformService platformService) : ControllerBase
+[Authorize]
+public class PlatformsController(
+    IPlatformService platformService,
+    IValidator<CreatePlatformDto> createValidator,
+    IValidator<UpdatePlatformDto> updateValidator) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<PlatformResponse>>> GetAll()
+    public async Task<IActionResult> GetAll()
     {
         return Ok(await platformService.GetAllAsync());
     }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<PlatformResponse>> GetById(int id)
+    public async Task<IActionResult> GetById(int id)
     {
-        var platform = await platformService.GetByIdAsync(id);
-
-        if (platform is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(platform);
+        var result = await platformService.GetByIdAsync(id);
+        return result is { Success: true } ? Ok(result) : NotFound(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<PlatformResponse>> Create(
-        CreatePlatformRequest request)
+    public async Task<IActionResult> Create([FromBody] CreatePlatformDto createPlatformDto)
     {
-        var platform = await platformService.CreateAsync(request);
+        var validationResult = await createValidator.ValidateAsync(createPlatformDto);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(error => error.ErrorMessage).ToList();
+            return BadRequest(ApiResponseDto<PlatformDto>.ErrorResult("Validation failed", errors));
+        }
 
-        return CreatedAtAction(
-            nameof(GetById),
-            new { id = platform.Id },
-            platform
-        );
+        var result = await platformService.CreateAsync(createPlatformDto);
+        return result.Success
+            ? CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result)
+            : BadRequest(result);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(
-        int id,
-        UpdatePlatformRequest request)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdatePlatformDto updatePlatformDto)
     {
-        var success = await platformService.UpdateAsync(id, request);
-
-        if (!success)
+        var validationResult = await updateValidator.ValidateAsync(updatePlatformDto);
+        if (!validationResult.IsValid)
         {
-            return NotFound();
+            var errors = validationResult.Errors.Select(error => error.ErrorMessage).ToList();
+            return BadRequest(ApiResponseDto<PlatformDto>.ErrorResult("Validation failed", errors));
         }
 
-        return NoContent();
+        var result = await platformService.UpdateAsync(id, updatePlatformDto);
+        return result.Success ? Ok(result) : NotFound(result);
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var success = await platformService.DeleteAsync(id);
-
-        if (!success)
-        {
-            return NotFound();
-        }
-
-        return NoContent();
+        var result = await platformService.DeleteAsync(id);
+        return result.Success ? Ok(result) : NotFound(result);
     }
 }

@@ -1,164 +1,165 @@
+using System.Reflection;
+using System.Text;
+using FluentValidation;
 using GameCollectionManager.Data;
 using GameCollectionManager.DTOs;
 using GameCollectionManager.Models;
+using GameCollectionManager.Repositories;
+using GameCollectionManager.Repositories.Interface;
 using GameCollectionManager.Services;
 using GameCollectionManager.Services.Interface;
+using GameCollectionManager.Validators;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
-class Program
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        options.Password.RequireDigit = true;
+        options.Password.RequiredLength = 6;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireLowercase = true;
+        options.User.RequireUniqueEmail = true;
+        options.SignIn.RequireConfirmedEmail = false;
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var key = Encoding.ASCII.GetBytes(
+    jwtSettings["Secret"] ?? "your-super-secret-key-that-is-at-least-256-bits-long");
+
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAutoMapper(typeof(Program));
+
+builder.Services.AddScoped<IValidator<CreateDeveloperDto>, CreateDeveloperValidator>();
+builder.Services.AddScoped<IValidator<UpdateDeveloperDto>, UpdateDeveloperValidator>();
+builder.Services.AddScoped<IValidator<CreateGameDto>, CreateGameValidator>();
+builder.Services.AddScoped<IValidator<UpdateGameDto>, UpdateGameValidator>();
+builder.Services.AddScoped<IValidator<CreateGenreDto>, CreateGenreValidator>();
+builder.Services.AddScoped<IValidator<UpdateGenreDto>, UpdateGenreValidator>();
+builder.Services.AddScoped<IValidator<CreatePlatformDto>, CreatePlatformValidator>();
+builder.Services.AddScoped<IValidator<UpdatePlatformDto>, UpdatePlatformValidator>();
+builder.Services.AddScoped<IValidator<RegisterDto>, RegisterValidator>();
+builder.Services.AddScoped<IValidator<LoginDto>, LoginValidator>();
+
+builder.Services.AddScoped<IDeveloperRepository, DeveloperRepository>();
+builder.Services.AddScoped<IGameRepository, GameRepository>();
+builder.Services.AddScoped<IGenreRepository, GenreRepository>();
+builder.Services.AddScoped<IPlatfromRepository, PlatformRepository>();
+
+builder.Services.AddScoped<IDeveloperService, DeveloperService>();
+builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddScoped<IGenreService, GenreService>();
+builder.Services.AddScoped<IPlatformService, PlatformService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
 {
-    static async Task Main(string[] args)
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
-        var builder = WebApplication.CreateBuilder(args);
+        Title = "Game Collection Manager API",
+        Version = "v1",
+        Description = "API for managing games, developers, genres, and platforms"
+    });
 
-        builder.Services.AddControllers();
-
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
-
-        builder.Services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlite(
-                builder.Configuration.GetConnectionString("DefaultConnection")
-            ));
-
-        builder.Services.AddScoped<IDeveloperService, DeveloperService>();
-        builder.Services.AddScoped<IGameService, GameService>();
-        builder.Services.AddScoped<IGenreService, GenreService>();
-        builder.Services.AddScoped<IPlatformService, PlatformService>();
-
-        var app = builder.Build();
-
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
-
-        app.MapControllers();
-
-        using (var scope = app.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider
-                .GetRequiredService<AppDbContext>();
-
-            await context.Database.MigrateAsync();
-
-            await SeedDatabaseAsync(context);
-        }
-
-        await app.RunAsync();
-    }
-    
-    static async Task SeedDatabaseAsync(AppDbContext context)
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        if (await context.Developers.AnyAsync())
-            return;
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' followed by your token.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
 
-        var developers = new[]
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
-            new Developer
+            new OpenApiSecurityScheme
             {
-                Name = "CD Projekt Red",
-                Location = "Poland"
-            },
-            new Developer
-            {
-                Name = "Rockstar Games",
-                Location = "United States"
-            },
-            new Developer
-            {
-                Name = "FromSoftware",
-                Location = "Japan"
-            }
-        };
-
-        var genres = new[]
-        {
-            new Genre { Name = "RPG" },
-            new Genre { Name = "Action" },
-            new Genre { Name = "Adventure" },
-            new Genre { Name = "Open World" }
-        };
-
-        var platforms = new[]
-        {
-            new Platform { Name = "PC" },
-            new Platform { Name = "PlayStation 5" },
-            new Platform { Name = "Xbox Series X" }
-        };
-
-        context.Developers.AddRange(developers);
-        context.Genres.AddRange(genres);
-        context.Platforms.AddRange(platforms);
-
-        await context.SaveChangesAsync();
-
-        var games = new[]
-        {
-            new Game
-            {
-                Title = "The Witcher 3",
-                Description = "Open world action RPG.",
-                ReleaseYear = 2015,
-                Developer = developers[0],
-                Genres = new List<Genre>
+                Reference = new OpenApiReference
                 {
-                    genres[0],
-                    genres[1],
-                    genres[3]
-                },
-                Platforms = new List<Platform>
-                {
-                    platforms[0],
-                    platforms[1],
-                    platforms[2]
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
                 }
             },
+            []
+        }
+    });
 
-            new Game
-            {
-                Title = "Red Dead Redemption 2",
-                Description = "Open world action adventure game.",
-                ReleaseYear = 2018,
-                Developer = developers[1],
-                Genres = new List<Genre>
-                {
-                    genres[1],
-                    genres[2],
-                    genres[3]
-                },
-                Platforms = new List<Platform>
-                {
-                    platforms[0],
-                    platforms[1],
-                    platforms[2]
-                }
-            },
-
-            new Game
-            {
-                Title = "Elden Ring",
-                Description = "Action RPG developed by FromSoftware.",
-                ReleaseYear = 2022,
-                Developer = developers[2],
-                Genres = new List<Genre>
-                {
-                    genres[0],
-                    genres[1],
-                    genres[3]
-                },
-                Platforms = new List<Platform>
-                {
-                    platforms[0],
-                    platforms[1],
-                    platforms[2]
-                }
-            }
-        };
-
-        context.Games.AddRange(games);
-
-        await context.SaveChangesAsync();
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
     }
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
+
+var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<AppDbContext>();
+
+    await context.Database.MigrateAsync();
+    await SeedData.Initialize(services);
 }
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Game Collection Manager API v1");
+        options.RoutePrefix = string.Empty;
+    });
+}
+
+app.UseHttpsRedirection();
+app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+await app.RunAsync();

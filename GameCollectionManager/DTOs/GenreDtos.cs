@@ -1,23 +1,18 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace GameCollectionManager.DTOs;
 
-public class GenreResponse
+public class GenreDto
 {
     public int Id { get; set; }
-
     public string Name { get; set; } = string.Empty;
 }
 
 
-public class CreateGenreRequest
+public class CreateGenreDto
 {
-    [Required] [MaxLength(100)] public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 }
 
-public class UpdateGenreRequest
-{
-    [Required]
-    [MaxLength(100)]
+public class UpdateGenreDto
+{ 
     public string Name { get; set; } = string.Empty;
 }

@@ -4,15 +4,15 @@ namespace GameCollectionManager.Services.Interface;
 public interface IGenreService
 {
     //Create
-    Task<GenreResponse> CreateAsync(CreateGenreRequest request);
+    Task<ApiResponseDto<GenreDto>> CreateAsync(CreateGenreDto createGenreDto);
     
     //Read
-    Task<List<GenreResponse>> GetAllAsync();
-    Task<GenreResponse?> GetByIdAsync(int id);
+    Task<ApiResponseDto<List<GenreDto>>> GetAllAsync();
+    Task<ApiResponseDto<GenreDto>?> GetByIdAsync(int id);
     
     //Update
-    Task<bool> UpdateAsync(int id, UpdateGenreRequest request);
+    Task<ApiResponseDto<GenreDto>> UpdateAsync(int id, UpdateGenreDto updateGenreDto);
     
     //Delete
-    Task<bool> DeleteAsync(int id);
+    Task<ApiResponseDto<object>> DeleteAsync(int id);
 }
