@@ -8,7 +8,7 @@ namespace GameCollectionManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+//[Authorize(Roles = "Admin")]
 public class PlatformsController(
     IPlatformService platformService,
     IValidator<CreatePlatformDto> createValidator,
@@ -28,6 +28,7 @@ public class PlatformsController(
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreatePlatformDto createPlatformDto)
     {
         var validationResult = await createValidator.ValidateAsync(createPlatformDto);
@@ -44,6 +45,7 @@ public class PlatformsController(
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdatePlatformDto updatePlatformDto)
     {
         var validationResult = await updateValidator.ValidateAsync(updatePlatformDto);
@@ -58,6 +60,7 @@ public class PlatformsController(
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var result = await platformService.DeleteAsync(id);

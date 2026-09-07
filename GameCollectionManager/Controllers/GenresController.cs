@@ -8,7 +8,7 @@ namespace GameCollectionManager.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+//[Authorize(Roles = "Admin")]
 public class GenresController(
     IGenreService genreService,
     IValidator<CreateGenreDto> createValidator,
@@ -28,6 +28,7 @@ public class GenresController(
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateGenreDto createGenreDto)
     {
         var validationResult = await createValidator.ValidateAsync(createGenreDto);
@@ -44,6 +45,7 @@ public class GenresController(
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateGenreDto updateGenreDto)
     {
         var validationResult = await updateValidator.ValidateAsync(updateGenreDto);
@@ -58,6 +60,7 @@ public class GenresController(
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var result = await genreService.DeleteAsync(id);
